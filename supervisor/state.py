@@ -146,6 +146,7 @@ def ensure_state_defaults(st: Dict[str, Any]) -> Dict[str, Any]:
     st.setdefault("budget_drift_pct", None)
     st.setdefault("budget_drift_alert", False)
     st.setdefault("evolution_consecutive_failures", 0)
+    st.setdefault("budget_override_usd", None)  # Override env budget limit
     for legacy_key in ("approvals", "idle_cursor", "idle_stats", "last_idle_task_at",
                         "last_auto_review_at", "last_review_task_id", "session_daily_snapshot"):
         st.pop(legacy_key, None)
@@ -255,7 +256,8 @@ def set_budget_limit(limit: float) -> None:
 def budget_remaining(st: Dict[str, Any]) -> float:
     """Calculate remaining budget in USD."""
     spent = float(st.get("spent_usd") or 0.0)
-    total = float(TOTAL_BUDGET_LIMIT or 0.0)
+    override = st.get("budget_override_usd")
+    total = float(override) if override is not None else float(TOTAL_BUDGET_LIMIT or 0.0)
     if total <= 0:
         return float('inf')  # No limit set
     return max(0.0, total - spent)
@@ -293,7 +295,8 @@ def check_openrouter_ground_truth() -> Optional[Dict[str, float]]:
 def budget_pct(st: Dict[str, Any]) -> float:
     """Calculate budget percentage used."""
     spent = float(st.get("spent_usd") or 0.0)
-    total = float(TOTAL_BUDGET_LIMIT or 0.0)
+    override = st.get("budget_override_usd")
+    total = float(override) if override is not None else float(TOTAL_BUDGET_LIMIT or 0.0)
     if total <= 0:
         return 0.0
     return (spent / total) * 100.0
@@ -589,7 +592,8 @@ def status_text(workers_dict: Dict[int, Any], pending_list: list, running_dict: 
         lines.append("queue_warning: running>0 while busy=0")
     spent = float(st.get("spent_usd") or 0.0)
     pct = budget_pct(st)
-    budget_remaining_usd = max(0, TOTAL_BUDGET_LIMIT - spent)
+    _eff_limit = float(st.get("budget_override_usd") or TOTAL_BUDGET_LIMIT or 0.0)
+    budget_remaining_usd = max(0, _eff_limit - spent)
     lines.append(f"budget_total: ${TOTAL_BUDGET_LIMIT:.0f}")
     lines.append(f"budget_remaining: ${budget_remaining_usd:.0f}")
     if pct > 0:
