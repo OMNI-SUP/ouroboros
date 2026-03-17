@@ -349,6 +349,19 @@ def reset_chat_agent():
     _w._chat_agent = None
 
 # ----------------------------
+# 6.4) Remnawave node monitor
+# ----------------------------
+try:
+    from supervisor.remnawave_monitor import start_monitor as _start_remnawave_monitor
+    _remnawave_thread = _start_remnawave_monitor(
+        drive_root=DRIVE_ROOT,
+        send_message_fn=lambda msg: send_with_budget(chat_id=int(load_state().get("owner_chat_id", 0)), text=msg),
+    )
+except Exception as _e:
+    log.warning("remnawave_monitor: failed to start: %s", _e)
+
+
+# ----------------------------
 # 7) Main loop
 # ----------------------------
 import types
